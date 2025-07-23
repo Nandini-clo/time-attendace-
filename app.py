@@ -19,7 +19,7 @@ if uploaded_file:
             month = st.selectbox("📅 Select Month", list(range(1, 13)), index=datetime.now().month - 1)
             year = st.selectbox("📆 Select Year", list(range(2020, 2031)), index=5)
 
-            employee_list = df[['Pos Code', 'Employee Name']].drop_duplicates().reset_index(drop=True)
+            employee_list = df[['Post Code', 'Employee Name']].drop_duplicates().reset_index(drop=True)
 
             if 'current_index' not in st.session_state:
                 st.session_state.current_index = 0
@@ -34,6 +34,8 @@ if uploaded_file:
 
                 days_in_month = (datetime(year, month % 12 + 1, 1) - timedelta(days=1)).day
 
+                saved_data = st.session_state.final_data_dict.get(st.session_state.current_index, {})
+
                 row_data = {
                     'Post Code': current['Post Code'],
                     'Employee Name': current['Employee Name']
@@ -47,10 +49,13 @@ if uploaded_file:
                     date_str = f"{day:02d}-{month:02d}"
                     st.markdown(f"#### 📅 {date_str}")
                     att_col, = st.columns(1)
+
+                    saved_status = saved_data.get(f'{day:02d}_Status', "P")
                     status = att_col.selectbox(
                         f"Attendance Type ({date_str})", 
                         ["P", "A", "L", "WO", "HL", "PH"], 
-                        key=f"status_{day}"
+                        key=f"status_{day}_{st.session_state.current_index}",
+                        index=["P", "A", "L", "WO", "HL", "PH"].index(saved_status)
                     )
 
                     if status in ["P", "PH"]:
@@ -61,14 +66,16 @@ if uploaded_file:
 
                         col1, col2 = st.columns(2)
                         with col1:
-                            ci_str = st.text_input(f"Check-in ({date_str})", value="09:00", key=f"ci_txt_{day}")
+                            default_ci = saved_data.get(f'{day:02d}_Check-in', "09:00")
+                            ci_str = st.text_input(f"Check-in ({date_str})", value=default_ci, key=f"ci_txt_{day}_{st.session_state.current_index}")
                             try:
                                 ci = datetime.strptime(ci_str, "%H:%M").time()
                             except:
                                 st.warning("⏰ Invalid check-in format. Using default 09:00")
                                 ci = datetime.strptime("09:00", "%H:%M").time()
                         with col2:
-                            co_str = st.text_input(f"Check-out ({date_str})", value="18:00", key=f"co_txt_{day}")
+                            default_co = saved_data.get(f'{day:02d}_Check-out', "18:00")
+                            co_str = st.text_input(f"Check-out ({date_str})", value=default_co, key=f"co_txt_{day}_{st.session_state.current_index}")
                             try:
                                 co = datetime.strptime(co_str, "%H:%M").time()
                             except:
@@ -122,13 +129,13 @@ if uploaded_file:
                 row_data["Total HL"] = count_HL
                 row_data["Total PH"] = count_PH
                 row_data["Total Attendance"] = count_P + count_HL + count_L + count_PH
+                row_data["Grand Total"] = count_P + count_A + count_L + count_WO + count_HL + count_PH
                 row_data["OT Hours"] = round(total_ot_hours, 2)
 
                 preview_df = pd.DataFrame([row_data])
                 st.markdown("### 🧾 Preview:")
                 st.dataframe(preview_df, use_container_width=True)
 
-                # Navigation Buttons
                 col_prev, col_next = st.columns([1, 1])
                 with col_prev:
                     if st.button("⏮ Previous"):
