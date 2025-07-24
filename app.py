@@ -172,8 +172,20 @@ if uploaded_file:
                             st.session_state.current_index += 1
                             save_backup()
                             st.rerun()
+                        else:
+                            # Last employee saved — show download!
+                            st.success("✅ All employee data entered!")
+                            final_df = pd.DataFrame([
+                                v for k, v in sorted(st.session_state.final_data_dict.items(), key=lambda x: int(x[0]))
+                            ])
+                            st.dataframe(final_df, use_container_width=True)
+                            towrite = io.BytesIO()
+                            with pd.ExcelWriter(towrite, engine='xlsxwriter') as writer:
+                                final_df.to_excel(writer, index=False, sheet_name='Attendance')
+                            st.download_button("📥 Download Final Excel", data=towrite.getvalue(), file_name="attendance_sheet.xlsx")
 
-            else:
+            elif current_index >= total_employees:
+                # Show download if rerun happened and all employees are already done
                 st.success("✅ All employee data entered!")
                 final_df = pd.DataFrame([
                     v for k, v in sorted(st.session_state.final_data_dict.items(), key=lambda x: int(x[0]))
@@ -186,3 +198,4 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"⚠️ Error processing file: {e}")
+
